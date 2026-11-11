@@ -46,6 +46,19 @@ export default function DebugPanel(p) {
     recentErrors: p.errors,
     userAgent: navigator.userAgent,
   };
+  const connectionTone = p.status === "Connected" ? "ok" : p.status === "Not connected" ? "bad" : "warn";
+  const diagnostics = [
+    ["Homeserver", diag.homeserver],
+    ["User ID", diag.userId],
+    ["Device ID", diag.deviceId],
+    ["Connection", diag.connection],
+    ["Sync state", diag.syncState],
+    ["Encryption", diag.crypto],
+    ["Message backup", backupStatus],
+    ["Selected room", diag.selectedRoomId],
+    ["Room encrypted", diag.selectedRoomEncrypted == null ? null : diag.selectedRoomEncrypted ? "Yes" : "No"],
+    ["Messages loaded", diag.messagesLoaded],
+  ];
 
   const copy = async () => {
     await navigator.clipboard.writeText(JSON.stringify(diag, null, 2));
@@ -84,38 +97,59 @@ export default function DebugPanel(p) {
 
   return (
     <div className="debug">
-      <button className="debug-toggle" onClick={() => setOpen(!open)}>{open ? "▼" : "▶"} Debug panel</button>
+      <button className="debug-toggle" aria-expanded={open} aria-controls="debug-panel-content" onClick={() => setOpen(!open)}>
+        <span className="debug-toggle-copy">
+          <span className={`debug-chevron${open ? " is-open" : ""}`} aria-hidden="true">›</span>
+          <span>
+            <span className="debug-title">Developer diagnostics</span>
+            <span className="debug-subtitle">Connection, encryption and recovery</span>
+          </span>
+        </span>
+        <span className={`debug-status ${connectionTone}`}>{p.status || "Status unavailable"}</span>
+      </button>
       {open && (
-        <div className="debug-body">
-          <table><tbody>
-            {[
-              ["Homeserver", diag.homeserver], ["User ID", diag.userId], ["Device ID", diag.deviceId],
-              ["Connection", diag.connection], ["Sync state", diag.syncState], ["Crypto", diag.crypto],
-              ["Message backup", backupStatus],
-              ["Selected room", diag.selectedRoomId], ["Room encrypted", String(diag.selectedRoomEncrypted)],
-              ["Messages loaded", diag.messagesLoaded],
-            ].map(([k, v]) => <tr key={k}><th>{k}</th><td>{v ?? "—"}</td></tr>)}
-          </tbody></table>
-          <div className="small"><b>Recent errors</b></div>
-          {p.errors.length === 0 ? <div className="muted small">None</div> : (
-            <ul className="errlist">{p.errors.map((e, i) => <li key={i}><span className="muted">{e.at}</span> {e.text}</li>)}</ul>
-          )}
-          <button className="btn ghost small" onClick={copy}>{copied ? "Copied!" : "Copy diagnostic info"}</button>
+        <div className="debug-body" id="debug-panel-content">
+          <section className="debug-section" aria-label="Session diagnostics">
+            <div className="debug-grid">
+              {diagnostics.map(([label, value]) => (
+                <div className="debug-item" key={label}>
+                  <span className="debug-label">{label}</span>
+                  <span className="debug-value" title={value == null ? undefined : String(value)}>{value ?? "—"}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="debug-section debug-errors" aria-labelledby="debug-errors-title">
+            <div className="debug-section-heading">
+              <span id="debug-errors-title" className="debug-section-title">Recent errors</span>
+              <span className={`debug-error-count${p.errors.length ? " has-errors" : ""}`}>{p.errors.length}</span>
+            </div>
+            {p.errors.length === 0 ? <div className="muted small">No recent errors</div> : (
+              <ul className="errlist">{p.errors.map((e, i) => <li key={i}><span className="muted">{e.at}</span> {e.text}</li>)}</ul>
+            )}
+          </section>
+          <div className="debug-actions">
+            <button className="btn small" onClick={copy}>{copied ? "Copied!" : "Copy diagnostic info"}</button>
+          </div>
 
           {p.canRestore && (
-            <div className="keys">
-              <div className="small"><b>Restore historical message keys</b></div>
+            <section className="keys" aria-labelledby="debug-keys-title">
+              <div>
+                <div className="debug-section-title" id="debug-keys-title">Recover message keys</div>
+                <div className="muted small">Restore a backup or import a room-key export to read historical messages.</div>
+              </div>
               <div className="row">
                 <input ref={recoveryInput} aria-label="Recovery Key" type="password" placeholder="Element Recovery Key (Security Key)" value={recoveryKey}
                   onChange={(e) => setRecoveryKey(e.target.value)} autoComplete="off" disabled={busy} />
-                <button className="btn ghost small" disabled={busy || !recoveryKey} onClick={restore}>Restore from backup</button>
+                <button className="btn small" disabled={busy || !recoveryKey} onClick={restore}>Restore from backup</button>
               </div>
               <div className="row">
-                <textarea rows={2} placeholder="Paste UNENCRYPTED room-key export JSON (array)" value={keyJson} onChange={(e) => setKeyJson(e.target.value)} />
-                <button className="btn ghost small" disabled={busy || !keyJson} onClick={doImport}>Import keys</button>
+                <textarea aria-label="Room-key export JSON" rows={2} placeholder="Paste unencrypted room-key export JSON" value={keyJson} onChange={(e) => setKeyJson(e.target.value)} />
+                <button className="btn small" disabled={busy || !keyJson} onClick={doImport}>Import keys</button>
               </div>
-              {keyMsg && <div className="small" role="status">{keyMsg}</div>}
-            </div>
+              {keyMsg && <div className="debug-key-message small" role="status">{keyMsg}</div>}
+            </section>
           )}
         </div>
       )}

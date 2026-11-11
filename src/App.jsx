@@ -32,7 +32,6 @@ export default function App() {
             {m.status}
           </span>
           {m.session && <span className="mxid">{m.session.userId}</span>}
-          {loggedIn && <button className="btn ghost" onClick={m.logout}>Log out</button>}
         </div>
       </header>
 
@@ -66,6 +65,21 @@ export default function App() {
         recoveryRequest={recoveryRequest}
         onRecovered={m.refresh}
       />
+      {loggedIn && (
+        <nav className="bottom-nav" aria-label="Main navigation">
+          <button className="bottom-nav-item is-active" type="button" onClick={() => setRoomId(null)} aria-current="page">
+            <span className="bottom-nav-icon" aria-hidden="true">▤</span>
+            <span>Chats</span>
+          </button>
+          <div className="bottom-nav-account">
+            <span className="bottom-nav-user" title={m.session.userId}>{m.session.userId}</span>
+            <button className="bottom-nav-item" type="button" onClick={m.logout}>
+              <span className="bottom-nav-icon" aria-hidden="true">⇄</span>
+              <span>Switch user</span>
+            </button>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
